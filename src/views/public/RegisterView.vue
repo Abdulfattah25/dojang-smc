@@ -2,11 +2,11 @@
   <div class="max-w-xl mx-auto">
     <!-- Clean Minimalist Header -->
     <div class="mb-5 sm:mb-7 text-center sm:text-left">
-      <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-brand">
-        Pendaftaran Siswa Baru
+      <h2 class="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight font-brand">
+        Pendaftaran Atlet
       </h2>
       <p class="text-xs sm:text-sm text-slate-500 mt-1">
-        Isi data calon anggota di bawah ini. Proses cepat tanpa perlu registrasi akun.
+        Proses cepat tanpa perlu registrasi akun.
       </p>
     </div>
 
@@ -18,7 +18,7 @@
         <div class="space-y-3.5">
           <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
             <span class="w-1.5 h-3.5 rounded-full bg-satria-red"></span>
-            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-900">
+            <h3 class="font-bold text-xs text-slate-900">
               Biodata Calon Anggota
             </h3>
           </div>
@@ -42,7 +42,7 @@
 
             <!-- Gender Segmented Control -->
             <div>
-              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              <label class="block text-xs font-bold text-slate-700 mb-1.5">
                 Jenis Kelamin <span class="text-satria-red">*</span>
               </label>
               <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-lg h-11 sm:h-12 items-center">
@@ -80,7 +80,7 @@
         <div class="space-y-3.5">
           <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
             <span class="w-1.5 h-3.5 rounded-full bg-satria-gold"></span>
-            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-900">
+            <h3 class="font-bold text-xs text-slate-900">
               Kontak & Tingkatan Sabuk
             </h3>
           </div>
@@ -97,7 +97,7 @@
 
             <!-- Pilihan Sabuk Dropdown -->
             <div>
-              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              <label class="block text-xs font-bold text-slate-700 mb-1.5">
                 Sabuk Saat Ini <span class="text-satria-red">*</span>
               </label>
               <select
@@ -129,7 +129,7 @@
         <div class="space-y-3.5">
           <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
             <span class="w-1.5 h-3.5 rounded-full bg-slate-900"></span>
-            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-900">
+            <h3 class="font-bold text-xs text-slate-900">
               Unggah Dokumen
             </h3>
           </div>
@@ -165,19 +165,29 @@
           {{ serverError }}
         </div>
 
-        <!-- Submit Button -->
-        <div class="pt-1">
+        <!-- Submit Button & Check Status Navigation -->
+        <div class="pt-1 space-y-2.5">
           <BaseButton
             type="submit"
             variant="success"
             size="lg"
             :loading="isSubmitting"
-            customClass="w-full font-bold text-sm tracking-wide h-12 sm:h-13 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-md active:translate-y-[1px]"
+            customClass="w-full font-bold text-sm tracking-wide h-11 sm:h-12 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs active:translate-y-[1px]"
           >
             <Send class="w-4 h-4 mr-2" />
-            <span>Kirim Pendaftaran Siswa Baru</span>
+            <span>Kirim Pendaftaran</span>
           </BaseButton>
-          <p class="text-[11px] text-slate-400 text-center mt-2.5">
+
+          <!-- Check Registration Status Button (Below Submit) -->
+          <router-link
+            to="/status"
+            class="w-full h-10 sm:h-11 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-[0.99]"
+          >
+            <Search class="w-3.5 h-3.5 text-satria-red" />
+            <span>Sudah Daftar? Cek Status Pendaftaran</span>
+          </router-link>
+
+          <p class="text-[11px] text-slate-400 text-center pt-0.5">
             Data pendaftaran terenkripsi & tersimpan aman di server dojang SMC.
           </p>
         </div>
@@ -190,7 +200,7 @@
 <script setup>
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Send } from 'lucide-vue-next';
+import { Send, Search } from 'lucide-vue-next';
 import { apiRequest } from '../../utils/api.js';
 import BaseInput from '../../components/common/BaseInput.vue';
 import BaseButton from '../../components/common/BaseButton.vue';
@@ -277,6 +287,16 @@ async function submitRegistration() {
     if (form.doc_photo) {
       payload.append('doc_photo', form.doc_photo);
     }
+
+    // Tunggu token anti-bot jika belum siap (maks 2 detik)
+    if (!form.turnstile_token) {
+      let attempts = 0;
+      while (!form.turnstile_token && attempts < 20) {
+        await new Promise((r) => setTimeout(r, 100));
+        attempts++;
+      }
+    }
+
     payload.append('turnstile_token', form.turnstile_token || 'dummy-turnstile-token');
 
     const result = await apiRequest('/api/register', {

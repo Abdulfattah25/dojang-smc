@@ -19,26 +19,35 @@ function hexToBuffer(hex) {
   return bytes;
 }
 
-function base64UrlEncode(str) {
-  const base64 = btoa(str);
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function base64UrlDecode(str) {
-  str = str.replace(/-/g, '+').replace(/_/g, '/');
-  while (str.length % 4) {
-    str += '=';
-  }
-  return atob(str);
-}
-
-function arrayBufferToBase64Url(buffer) {
+function bytesToBase64Url(bytes) {
   let binary = '';
-  const bytes = new Uint8Array(buffer);
   for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
-  return base64UrlEncode(binary);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlToBytes(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function base64UrlEncode(str) {
+  return bytesToBase64Url(enc.encode(str));
+}
+
+function base64UrlDecode(str) {
+  return dec.decode(base64UrlToBytes(str));
+}
+
+function arrayBufferToBase64Url(buffer) {
+  return bytesToBase64Url(new Uint8Array(buffer));
 }
 
 /**
@@ -153,12 +162,8 @@ export async function verifyJwt(token, secret) {
       ['verify']
     );
 
-    // Decode signature
-    const signatureBinary = base64UrlDecode(encodedSignature);
-    const signatureBytes = new Uint8Array(signatureBinary.length);
-    for (let i = 0; i < signatureBinary.length; i++) {
-      signatureBytes[i] = signatureBinary.charCodeAt(i);
-    }
+    // Decode signature bytes
+    const signatureBytes = base64UrlToBytes(encodedSignature);
 
     const isValid = await crypto.subtle.verify('HMAC', key, signatureBytes, enc.encode(data));
     if (!isValid) return null;

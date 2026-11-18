@@ -229,15 +229,6 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-0.5 text-xs text-slate-500 font-mono mt-2 sm:mt-1.5 pl-11.5 sm:pl-13">
               <p>Tgl Lahir: <span class="text-slate-800 font-semibold whitespace-nowrap">{{ item.birth_date }}</span></p>
               <p>Sabuk: <span class="text-[#8C6918] font-semibold whitespace-nowrap">{{ item.belt_rank || 'Putih' }}</span></p>
-              <p>WhatsApp: 
-                <a
-                  :href="'https://wa.me/' + cleanPhone(item.phone_number)"
-                  target="_blank"
-                  class="text-emerald-700 font-medium hover:underline whitespace-nowrap"
-                >
-                  {{ item.phone_number }}
-                </a>
-              </p>
               <p class="sm:col-span-2 md:col-span-3 truncate font-sans text-slate-600">Alamat: <span class="text-slate-700">{{ item.address }}</span></p>
             </div>
           </div>

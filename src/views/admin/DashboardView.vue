@@ -150,8 +150,20 @@
           class="p-3.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/70 transition-colors"
         >
           <div class="flex items-center gap-3 min-w-0">
-            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-satria-red/10 border border-satria-red/20 text-satria-red flex items-center justify-center font-bold font-mono text-sm shrink-0">
-              {{ applicant.full_name?.charAt(0) || 'A' }}
+            <div class="relative shrink-0">
+              <img
+                v-if="applicant.doc_photo_key && !avatarErrors[applicant.id]"
+                :src="'/api/admin/documents/' + applicant.doc_photo_key"
+                @error="avatarErrors[applicant.id] = true"
+                :alt="applicant.full_name"
+                class="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-slate-200 shadow-2xs"
+              />
+              <div
+                v-else
+                class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-satria-red/10 border border-satria-red/20 text-satria-red flex items-center justify-center font-bold font-mono text-xs sm:text-sm shrink-0 shadow-2xs"
+              >
+                {{ applicant.full_name?.charAt(0) || 'A' }}
+              </div>
             </div>
             <div class="min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
@@ -218,6 +230,7 @@ const metrics = reactive({
   total_revenue_month: 0,
 });
 const recentApplicants = ref([]);
+const avatarErrors = reactive({});
 
 async function fetchDashboardData() {
   loading.value = true;

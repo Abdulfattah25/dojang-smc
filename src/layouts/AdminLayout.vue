@@ -86,13 +86,13 @@
     </div>
 
     <!-- Mobile Bottom Navigation Bar (PWA 64px) -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 z-40 flex items-center justify-around px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 z-40 flex items-center justify-around px-0.5 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
       <router-link
         v-for="item in navItems"
         :key="item.path"
         :to="item.path"
         :class="[
-          'flex flex-col items-center justify-center flex-1 py-1 relative text-[10px] transition-colors min-w-0 px-1',
+          'flex flex-col items-center justify-center flex-1 py-1 relative text-[10px] transition-colors min-w-0 px-0.5',
           $route.path === item.path ? 'text-[#8C6918] font-bold' : 'text-slate-500 hover:text-slate-800 font-medium'
         ]"
       >
@@ -126,6 +126,7 @@ import {
   LayoutDashboard,
   UserCheck,
   Users,
+  CreditCard,
   FileSpreadsheet,
   ShieldAlert,
   LogOut
@@ -141,6 +142,7 @@ const navItems = computed(() => {
     { label: 'Beranda', shortLabel: 'Beranda', path: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Pendaftar', shortLabel: 'Pendaftar', path: '/admin/applicants', icon: UserCheck, badge: true },
     { label: 'Anggota', shortLabel: 'Anggota', path: '/admin/members', icon: Users },
+    { label: 'Pembayaran', shortLabel: 'Bayar', path: '/admin/payments', icon: CreditCard },
     { label: 'Laporan', shortLabel: 'Laporan', path: '/admin/reports', icon: FileSpreadsheet },
   ];
 

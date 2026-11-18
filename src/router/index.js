@@ -33,6 +33,12 @@ const routes = [
         name: 'Success',
         component: SuccessView,
         meta: { title: 'Pendaftaran Berhasil - Taekwondo Satria Muda Club' }
+      },
+      {
+        path: 'status',
+        name: 'CheckStatus',
+        component: () => import('../views/public/CheckStatusView.vue'),
+        meta: { title: 'Cek Status Pendaftaran - Taekwondo Satria Muda Club' }
       }
     ]
   },

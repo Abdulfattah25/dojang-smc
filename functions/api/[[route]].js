@@ -8,9 +8,16 @@ import { putDocument, getDocument, deleteDocument } from '../services/storage.js
 
 const app = new Hono().basePath('/api');
 
-// CORS for local development
+// CORS restricted to same origin or local dev
 app.use('*', cors({
-  origin: (origin) => origin || '*',
+  origin: (origin, c) => {
+    if (!origin) return '*';
+    const reqUrl = new URL(c.req.url);
+    if (origin === reqUrl.origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return origin;
+    }
+    return null;
+  },
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
@@ -83,10 +90,16 @@ app.post('/register', async (c) => {
       return c.json({ error: validation.errors[0], errors: validation.errors }, 400);
     }
 
-    // 3. Validate files
+    // 3. Validate files & size limits (max 2 MB per file)
+    const maxMb = parseInt(c.env.MAX_UPLOAD_SIZE_MB, 10) || 2;
+    const maxBytes = maxMb * 1024 * 1024;
+
     const docBirthCert = formData.get('doc_birth_cert');
     if (!docBirthCert || !(docBirthCert instanceof File) || docBirthCert.size === 0) {
       return c.json({ error: 'Berkas Akta Kelahiran wajib diunggah.' }, 400);
+    }
+    if (docBirthCert.size > maxBytes) {
+      return c.json({ error: `Ukuran berkas Akta Kelahiran melebihi batas maksimal ${maxMb} MB.` }, 400);
     }
 
     const birthCertBuffer = await docBirthCert.arrayBuffer();
@@ -106,6 +119,9 @@ app.post('/register', async (c) => {
     // Optional doc_photo
     const docPhoto = formData.get('doc_photo');
     if (docPhoto && docPhoto instanceof File && docPhoto.size > 0) {
+      if (docPhoto.size > maxBytes) {
+        return c.json({ error: `Ukuran pas foto melebihi batas maksimal ${maxMb} MB.` }, 400);
+      }
       const photoBuffer = await docPhoto.arrayBuffer();
       let photoExt;
       try {
@@ -188,6 +204,107 @@ app.post('/register', async (c) => {
       try { await deleteDocument(c.env, photoKey); } catch (_) {}
     }
     return c.json({ error: err.message || 'Terjadi kesalahan sistem saat memproses pendaftaran.' }, 500);
+  }
+});
+
+// ==========================================================
+// 1.1 PUBLIC ATHLETE STATUS CHECK
+// ==========================================================
+app.post('/check-status', async (c) => {
+  try {
+    const body = await c.req.json();
+    const fullName = (body.full_name || '').trim();
+    const birthDate = (body.birth_date || '').trim();
+
+    if (!fullName || !birthDate) {
+      return c.json({ error: 'Nama lengkap dan tanggal lahir wajib diisi.' }, 400);
+    }
+
+    const member = await c.env.DB.prepare(`
+      SELECT id, registration_code, full_name, birth_date, belt_rank,
+             registration_status, payment_status, payment_date, doc_photo_key, created_at
+      FROM members
+      WHERE LOWER(TRIM(full_name)) = LOWER(?)
+        AND birth_date = ?
+      ORDER BY id DESC
+      LIMIT 1
+    `).bind(fullName, birthDate).first();
+
+    if (!member) {
+      return c.json({
+        found: false,
+        message: 'Data pendaftaran tidak ditemukan. Pastikan nama lengkap dan tanggal lahir sesuai dengan saat mendaftar.'
+      });
+    }
+
+    // Get admin whatsapp number from settings
+    let whatsapp = '081234567890';
+    try {
+      const setting = await c.env.DB.prepare(
+        `SELECT value FROM settings WHERE key = 'admin_whatsapp' LIMIT 1`
+      ).first();
+      if (setting && setting.value) {
+        whatsapp = setting.value;
+      }
+    } catch (_) {}
+
+    return c.json({
+      found: true,
+      member: {
+        id: member.id,
+        registration_code: member.registration_code,
+        full_name: member.full_name,
+        birth_date: member.birth_date,
+        belt_rank: member.belt_rank || 'Putih',
+        registration_status: member.registration_status || 'pending',
+        payment_status: member.payment_status || 'unpaid',
+        payment_date: member.payment_date,
+        doc_photo_key: member.doc_photo_key,
+        created_at: member.created_at,
+      },
+      whatsapp,
+    });
+  } catch (err) {
+    console.error('Error checking status:', err);
+    return c.json({ error: 'Terjadi kesalahan sistem saat memeriksa status.' }, 500);
+  }
+});
+
+// ==========================================================
+// 1.2 PUBLIC AVATAR STREAMING (SECURE: PHOTO ONLY)
+// ==========================================================
+app.get('/avatar/*', async (c) => {
+  const photoKey = c.req.path.replace(/^\/api\/avatar\//, '');
+  const isValidPhotoKey = /^docs\/\d{4}\/\d{2}\/[a-zA-Z0-9_\-\.]+$/.test(photoKey);
+
+  if (!photoKey || !isValidPhotoKey) {
+    return c.json({ error: 'Key foto tidak valid.' }, 400);
+  }
+
+  try {
+    // Restrict access strictly to member profile photos (never birth certificates)
+    const isProfilePhoto = await c.env.DB.prepare(
+      `SELECT id FROM members WHERE doc_photo_key = ? LIMIT 1`
+    ).bind(photoKey).first();
+
+    if (!isProfilePhoto) {
+      return c.json({ error: 'Foto profil tidak ditemukan atau tidak diizinkan.' }, 404);
+    }
+
+    const document = await getDocument(c.env, photoKey);
+    if (!document) {
+      return c.json({ error: 'Foto tidak ditemukan.' }, 404);
+    }
+
+    return new Response(document.body, {
+      headers: {
+        'Content-Type': document.contentType || 'image/jpeg',
+        'Cache-Control': 'public, max-age=86400',
+        'X-Content-Type-Options': 'nosniff',
+      }
+    });
+  } catch (err) {
+    return c.json({ error: 'Gagal memuat foto.' }, 500);
   }
 });
 
@@ -282,7 +399,7 @@ app.get('/admin/dashboard', authMiddleware, async (c) => {
         AND strftime('%Y-%m', payment_date) = ?
       `).bind(currentWitaMonth).first(),
       c.env.DB.prepare(`
-        SELECT id, registration_code, full_name, phone_number, belt_rank, registration_status, payment_status, created_at
+        SELECT id, registration_code, full_name, phone_number, belt_rank, registration_status, payment_status, doc_photo_key, created_at
         FROM members
         ORDER BY id DESC
         LIMIT 5
@@ -310,11 +427,13 @@ app.get('/admin/dashboard', authMiddleware, async (c) => {
 // ==========================================================
 app.get('/admin/applicants', authMiddleware, async (c) => {
   try {
+    const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '250', 10), 1), 500);
     const list = await c.env.DB.prepare(`
       SELECT * FROM members
       WHERE registration_status = 'pending'
       ORDER BY id DESC
-    `).all();
+      LIMIT ?
+    `).bind(limit).all();
 
     return c.json({ applicants: list.results || [] });
   } catch (err) {
@@ -445,6 +564,7 @@ app.get('/admin/members', authMiddleware, async (c) => {
 app.put('/admin/members/:id', authMiddleware, async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
+  const cleanPayStatus = sanitize(body.payment_status);
 
   try {
     await c.env.DB.prepare(`
@@ -457,6 +577,8 @@ app.put('/admin/members/:id', authMiddleware, async (c) => {
           belt_rank = ?,
           registration_status = ?,
           payment_status = ?,
+          payment_date = CASE WHEN ? = 'paid' AND payment_date IS NULL THEN CURRENT_TIMESTAMP ELSE payment_date END,
+          payment_amount = CASE WHEN ? = 'paid' AND (payment_amount IS NULL OR payment_amount = 0) THEN 250000 ELSE payment_amount END,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(
@@ -467,7 +589,9 @@ app.put('/admin/members/:id', authMiddleware, async (c) => {
       sanitize(body.address),
       sanitize(body.belt_rank),
       sanitize(body.registration_status),
-      sanitize(body.payment_status),
+      cleanPayStatus,
+      cleanPayStatus,
+      cleanPayStatus,
       id
     ).run();
 
@@ -717,6 +841,58 @@ app.delete('/admin/users/:id', authMiddleware, superadminGuard, async (c) => {
     return c.json({ success: true, message: 'User admin berhasil dihapus.' });
   } catch (err) {
     return c.json({ error: 'Gagal menghapus user admin.' }, 500);
+  }
+});
+
+// ==========================================================
+// 8B. SYSTEM SETTINGS (WHATSAPP PENGURUS & CONFIG)
+// ==========================================================
+app.get('/settings/whatsapp', async (c) => {
+  try {
+    const row = await c.env.DB.prepare(`SELECT value FROM settings WHERE key = 'admin_whatsapp'`).first();
+    return c.json({ whatsapp_number: row?.value || '081234567890' });
+  } catch (err) {
+    return c.json({ whatsapp_number: '081234567890' });
+  }
+});
+
+app.get('/admin/settings', authMiddleware, async (c) => {
+  try {
+    const rows = await c.env.DB.prepare(`SELECT key, value FROM settings`).all();
+    const settings = { admin_whatsapp: '081234567890' };
+    for (const r of (rows.results || [])) {
+      settings[r.key] = r.value;
+    }
+    return c.json({ settings });
+  } catch (err) {
+    return c.json({ error: 'Gagal mengambil data pengaturan.' }, 500);
+  }
+});
+
+app.put('/admin/settings/whatsapp', authMiddleware, async (c) => {
+  try {
+    const { whatsapp_number } = await c.req.json();
+    if (!whatsapp_number) {
+      return c.json({ error: 'Nomor WhatsApp pengurus wajib diisi.' }, 400);
+    }
+    const cleaned = String(whatsapp_number).replace(/[^0-9]/g, '');
+    if (cleaned.length < 8 || cleaned.length > 16) {
+      return c.json({ error: 'Nomor WhatsApp tidak valid (antara 8 sampai 16 digit).' }, 400);
+    }
+
+    await c.env.DB.prepare(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES ('admin_whatsapp', ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+    `).bind(cleaned).run();
+
+    return c.json({
+      success: true,
+      message: 'Nomor WhatsApp pengurus berhasil diperbarui.',
+      whatsapp_number: cleaned
+    });
+  } catch (err) {
+    return c.json({ error: 'Gagal menyimpan pengaturan WhatsApp pengurus.' }, 500);
   }
 });
 

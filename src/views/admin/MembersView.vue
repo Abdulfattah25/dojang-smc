@@ -7,7 +7,7 @@
           Master Data Anggota
         </h2>
         <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-          Kelola biodata, tingkatan sabuk, dan status keaktifan murid.
+          Daftar anggota aktif 
         </p>
       </div>
     </div>
@@ -358,8 +358,8 @@
             </div>
 
             <!-- Card Info Details -->
-            <div class="flex items-center justify-between gap-2 text-xs text-slate-500 font-mono flex-wrap">
-              <span class="whitespace-nowrap">{{ m.gender }} • {{ m.birth_date }}</span>
+            <div class="flex items-center justify-between gap-2 text-xs text-slate-500 font-sans flex-wrap">
+              <span class="whitespace-nowrap">Tgl. Lahir: {{ m.birth_date }}</span>
               <a
                 :href="'https://wa.me/' + cleanPhone(m.phone_number)"
                 target="_blank"
@@ -369,7 +369,7 @@
               </a>
             </div>
 
-            <p class="text-xs text-slate-500 truncate font-sans">{{ m.address }}</p>
+            <p class="text-xs text-slate-500 truncate font-sans">Alamat: {{ m.address }}</p>
           </div>
         </div>
 
@@ -577,6 +577,7 @@ import {
 } from 'lucide-vue-next';
 import DocumentModal from '../../components/DocumentModal.vue';
 import StatusBadge from '../../components/common/StatusBadge.vue';
+import { cleanPhone } from '../../utils/date.js';
 
 const members = ref([]);
 const loading = ref(false);
@@ -726,15 +727,6 @@ async function deleteMember(id) {
   } catch (err) {
     toastError(err.message || 'Gagal menghapus data anggota.');
   }
-}
-
-function cleanPhone(phone) {
-  if (!phone) return '';
-  let cleaned = phone.replace(/[^0-9]/g, '');
-  if (cleaned.startsWith('0')) {
-    cleaned = '62' + cleaned.substring(1);
-  }
-  return cleaned;
 }
 
 onMounted(() => {

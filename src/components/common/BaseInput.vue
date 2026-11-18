@@ -1,6 +1,6 @@
 <template>
   <div class="w-full">
-    <label v-if="label" :for="id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+    <label v-if="label" :for="id" class="block text-xs font-bold text-slate-700 mb-1.5">
       {{ label }}
       <span v-if="required" class="text-satria-red ml-0.5">*</span>
     </label>

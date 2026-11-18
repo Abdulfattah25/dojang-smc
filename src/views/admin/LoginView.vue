@@ -137,8 +137,8 @@ import TurnstileWidget from '../../components/TurnstileWidget.vue';
 const router = useRouter();
 const auth = useAuth();
 
-const username = ref('admin');
-const password = ref('admin123');
+const username = ref('');
+const password = ref('');
 const showPassword = ref(false);
 const turnstileToken = ref('');
 const turnstileRef = ref(null);
@@ -172,6 +172,15 @@ async function handleLogin() {
   isLoading.value = true;
 
   try {
+    // Jika token Turnstile belum siap (misal form di-submit sangat cepat), tunggu hingga maks 2 detik
+    if (!turnstileToken.value) {
+      let attempts = 0;
+      while (!turnstileToken.value && attempts < 20) {
+        await new Promise((r) => setTimeout(r, 100));
+        attempts++;
+      }
+    }
+
     await auth.login(username.value, password.value, turnstileToken.value || 'dummy-turnstile-token');
     toastSuccess('Login berhasil! Selamat datang.');
     router.push('/admin/dashboard');

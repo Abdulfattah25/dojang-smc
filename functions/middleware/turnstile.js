@@ -1,6 +1,11 @@
 export async function verifyTurnstileToken(c, token) {
   const secretKey = c.env.TURNSTILE_SECRET_KEY;
-  const isDev = !secretKey || c.env.ENVIRONMENT === 'development' || secretKey.startsWith('1x000000');
+  const isDev = c.env.ENVIRONMENT === 'development' || (secretKey && secretKey.startsWith('1x000000'));
+
+  if (!secretKey && !isDev) {
+    console.error('[Turnstile Error] TURNSTILE_SECRET_KEY belum dikonfigurasi di environment produksi.');
+    return false;
+  }
 
   // Allow bypass in local dev or test mode
   if (isDev && (!token || token === 'dummy-turnstile-token' || token.startsWith('dummy'))) {

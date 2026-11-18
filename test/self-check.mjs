@@ -2,7 +2,7 @@ import assert from 'node:assert';
 import { validateImageMagicBytes, validateRegistrationPayload } from '../functions/services/validation.js';
 import { hashPassword, verifyPassword, signJwt, verifyJwt } from '../functions/services/auth.js';
 import { getWitaDate, getWitaISOString, getWitaMonthPrefix } from '../functions/api/[[route]].js';
-import { formatWitaDate, formatWitaDateTime, getWitaToday } from '../src/utils/date.js';
+import { formatWitaDate, formatWitaDateTime, getWitaToday, cleanPhone } from '../src/utils/date.js';
 
 async function runSelfChecks() {
   console.log('--- Starting Ponytail Self-Check Suite ---');
@@ -54,15 +54,16 @@ async function runSelfChecks() {
   assert.strictEqual(await verifyPassword('admin123', seedHash), true);
   console.log('✓ 3. PBKDF2 hash & verify passed (including default admin123).');
 
-  // 4. JWT Sign & Verify
+  // 4. JWT Sign & Verify (including Unicode characters like em dash and accents)
   const secret = 'test-secret-key-12345';
-  const token = await signJwt({ id: 1, username: 'admin', role: 'superadmin' }, secret, 3600);
+  const token = await signJwt({ id: 1, username: 'admin', full_name: 'Siti Rahmadani — Pelatih Utama', role: 'superadmin' }, secret, 3600);
   assert.strictEqual(typeof token, 'string');
   assert.strictEqual(token.split('.').length, 3);
 
   const decoded = await verifyJwt(token, secret);
   assert.ok(decoded);
   assert.strictEqual(decoded.username, 'admin');
+  assert.strictEqual(decoded.full_name, 'Siti Rahmadani — Pelatih Utama');
   assert.strictEqual(decoded.role, 'superadmin');
 
   // Tampered token
@@ -132,6 +133,19 @@ async function runSelfChecks() {
   assert.strictEqual(formatWitaDate('2026-11-18 06:15:00'), '18/11/2026');
   assert.ok(formatWitaDateTime('2026-11-18 06:15:00').includes('WITA'));
   console.log('✓ 9. Centralized WITA date utilities passed.');
+
+  // 10. Public Status Check Payload & Matching Logic
+  const normalizeSearch = (name) => (name || '').trim().toLowerCase();
+  assert.strictEqual(normalizeSearch('  Budi  Santoso  '), 'budi  santoso');
+  assert.strictEqual(normalizeSearch('BUDI SANTOSO'), 'budi santoso');
+  console.log('✓ 10. Status check query sanitization passed.');
+
+  // 11. Centralized Phone Number Sanitization (WITA / Indonesia)
+  assert.strictEqual(cleanPhone('08123456789'), '628123456789');
+  assert.strictEqual(cleanPhone('+62 812-3456-789'), '628123456789');
+  assert.strictEqual(cleanPhone(''), '');
+  assert.strictEqual(cleanPhone(null, '6281234567890'), '6281234567890');
+  console.log('✓ 11. Centralized cleanPhone sanitization passed.');
 
   console.log('All Ponytail self-checks completed successfully! 🥋');
 }

@@ -42,3 +42,14 @@ export function getWitaToday() {
   const d = new Date(Date.now() + 8 * 60 * 60 * 1000);
   return d.toISOString().substring(0, 10);
 }
+
+export function cleanPhone(phone, defaultVal = '') {
+  if (!phone) return defaultVal;
+  let cleaned = String(phone).replace(/[^0-9]/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.substring(1);
+  } else if (!cleaned.startsWith('62')) {
+    cleaned = '62' + cleaned;
+  }
+  return cleaned;
+}

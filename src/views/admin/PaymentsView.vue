@@ -1,30 +1,62 @@
 <template>
-  <div class="space-y-5 sm:space-y-6">
-    <!-- View Header -->
+  <div class="space-y-4 sm:space-y-5">
+    <!-- View Header & Filter Tabs -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
-        <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-brand whitespace-nowrap">
-          Pencatatan Status Pembayaran
-        </h2>
+        <div class="flex items-center gap-2">
+          <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-brand whitespace-nowrap">
+            Status Pembayaran
+          </h2>
+        </div>
         <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-          Kelola pembayaran biaya pendaftaran & iuran bulanan siswa Satria Muda Club.
+          Kelola pembayaran biaya pendaftaran.
         </p>
       </div>
 
-      <div class="flex items-center gap-2 shrink-0">
-        <select
-          v-model="statusFilter"
-          @change="currentPage = 1; fetchPayments()"
-          class="h-9 px-3 bg-white border border-slate-200 rounded-[6px] text-xs text-slate-800 focus:outline-none focus:border-satria-red shadow-2xs whitespace-nowrap"
+      <!-- Segmented Status Filter Tabs -->
+      <div class="flex items-center p-1 bg-slate-100 rounded-lg border border-slate-200/80 self-start sm:self-auto text-xs font-semibold overflow-x-auto max-w-full shadow-2xs">
+        <button
+          type="button"
+          @click="statusFilter = ''; currentPage = 1; fetchPayments()"
+          :class="[
+            'px-3 py-1.5 rounded-md transition-all whitespace-nowrap',
+            statusFilter === ''
+              ? 'bg-white text-slate-900 shadow-2xs font-bold'
+              : 'text-slate-600 hover:text-slate-900'
+          ]"
         >
-          <option value="">Semua Status</option>
-          <option value="unpaid">Belum Bayar (Unpaid)</option>
-          <option value="paid">Lunas (Paid)</option>
-        </select>
+          Semua
+        </button>
+        <button
+          type="button"
+          @click="statusFilter = 'unpaid'; currentPage = 1; fetchPayments()"
+          :class="[
+            'px-3 py-1.5 rounded-md transition-all whitespace-nowrap flex items-center gap-1.5',
+            statusFilter === 'unpaid'
+              ? 'bg-satria-red text-white shadow-2xs font-bold'
+              : 'text-slate-600 hover:text-satria-red'
+          ]"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400" v-if="statusFilter !== 'unpaid'"></span>
+          Belum Bayar
+        </button>
+        <button
+          type="button"
+          @click="statusFilter = 'paid'; currentPage = 1; fetchPayments()"
+          :class="[
+            'px-3 py-1.5 rounded-md transition-all whitespace-nowrap flex items-center gap-1.5',
+            statusFilter === 'paid'
+              ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+              : 'text-slate-600 hover:text-emerald-700'
+          ]"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" v-if="statusFilter !== 'paid'"></span>
+          Lunas
+        </button>
       </div>
     </div>
 
-    <!-- Payments List -->
+    <!-- Payments Container -->
     <div class="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
       <div v-if="loading && !payments.length" class="p-12 text-center text-slate-500 text-xs">
         <Loader2 class="w-6 h-6 animate-spin text-satria-red mx-auto mb-2" />
@@ -32,11 +64,12 @@
       </div>
 
       <div v-else-if="!payments.length" class="p-12 text-center text-slate-500 text-xs">
-        Tidak ada data pembayaran yang sesuai dengan kriteria.
+        <p class="font-medium text-slate-700 text-sm mb-1">Tidak ada data pembayaran</p>
+        <p class="text-slate-400">Tidak ada data pembayaran yang sesuai dengan kriteria filter.</p>
       </div>
 
       <div v-else>
-        <!-- Desktop Table View (Hidden on mobile) -->
+        <!-- Desktop Table View (>= md) -->
         <div class="hidden md:block overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
@@ -90,7 +123,7 @@
                   <button
                     type="button"
                     @click="openPaymentModal(p)"
-                    class="h-8 px-3 rounded bg-amber-50 hover:bg-amber-100 border border-amber-300 text-[#8C6918] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                    class="h-8 px-3 rounded bg-amber-50 hover:bg-amber-100 border border-amber-300 text-[#8C6918] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors whitespace-nowrap active:translate-y-[1px]"
                   >
                     <CreditCard class="w-3.5 h-3.5" />
                     <span>Catat</span>
@@ -101,51 +134,81 @@
           </table>
         </div>
 
-        <!-- Mobile Proportional Card List (Visible on mobile) -->
+        <!-- Mobile Card List View (Identical to MembersView & ApplicantsView) -->
         <div class="md:hidden divide-y divide-slate-100">
           <div
             v-for="p in payments"
             :key="p.id"
             class="p-3.5 sm:p-4 space-y-2.5 hover:bg-slate-50/70 transition-colors"
           >
+            <!-- Card Header: Avatar, Name, Action Button (Beside Name) -->
             <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="font-mono text-xs font-bold text-[#8C6918] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 whitespace-nowrap shrink-0">
-                  {{ p.registration_code }}
-                </span>
-                <span class="font-bold text-slate-900 text-sm truncate">{{ p.full_name }}</span>
+              <div class="flex items-center gap-2.5 min-w-0">
+                <!-- Profile Avatar Initial -->
+                <div
+                  :class="[
+                    'w-9 h-9 rounded-full flex items-center justify-center font-bold font-mono text-xs shrink-0 shadow-2xs border',
+                    p.payment_status === 'paid'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : 'bg-red-50 border-red-200 text-satria-red'
+                  ]"
+                >
+                  {{ p.full_name?.charAt(0) || 'A' }}
+                </div>
+                <div class="min-w-0">
+                  <span class="font-semibold text-slate-900 text-xs sm:text-sm truncate block mt-0.5">{{ p.full_name }}</span>
+                </div>
               </div>
+
+              <!-- Mobile Action Button (Beside Name, identical style to MembersView) -->
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  @click="openPaymentModal(p)"
+                  class="h-7.5 px-2.5 rounded bg-amber-50 hover:bg-amber-100 border border-amber-300 text-[#8C6918] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors whitespace-nowrap active:translate-y-[1px]"
+                  :title="p.payment_status === 'paid' ? 'Ubah Rincian Transaksi' : 'Catat Transaksi'"
+                >
+                  <CreditCard class="w-3.5 h-3.5" />
+                  <span>Catat</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Card Badges & Belt -->
+            <div class="flex items-center gap-2 flex-wrap text-xs">
+              <span v-if="p.belt_rank" class="inline-block px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-800 font-semibold font-mono text-[11px] whitespace-nowrap">
+                Sabuk: {{ p.belt_rank }}
+              </span>
               <StatusBadge :status="p.payment_status" type="payment" />
             </div>
 
-            <div class="flex items-center justify-between gap-2 text-xs">
-              <div>
-                <span class="text-slate-400 text-[11px] block">Nominal:</span>
-                <span class="font-mono font-bold text-slate-900 text-sm whitespace-nowrap">
+            <!-- Card Info Details Grid (Consistent hierarchy with MembersView) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-slate-500 font-mono">
+              <p>
+                Nominal:
+                <span class="text-slate-900 font-bold whitespace-nowrap">
                   Rp {{ Number(p.payment_amount || 0).toLocaleString('id-ID') }}
                 </span>
-              </div>
-
-              <div class="text-right">
-                <span class="text-slate-400 text-[11px] block">Metode / Tanggal:</span>
-                <span class="font-mono text-slate-600 text-xs whitespace-nowrap">
-                  {{ p.payment_method || 'Tunai' }} • {{ p.payment_date ? p.payment_date.substring(0, 10) : '-' }}
-                </span>
-              </div>
+              </p>
+              <p>
+                Metode:
+                <span class="text-slate-800 font-semibold whitespace-nowrap">{{ p.payment_method || 'Tunai' }}</span>
+                <span class="text-slate-400"> ({{ p.payment_date ? p.payment_date.substring(0, 10) : '-' }})</span>
+              </p>
+              <!-- <p v-if="p.phone_number">
+                WhatsApp:
+                <a
+                  :href="'https://wa.me/' + cleanPhone(p.phone_number)"
+                  target="_blank"
+                  class="text-emerald-700 font-medium hover:underline whitespace-nowrap"
+                >
+                  {{ p.phone_number }}
+                </a>
+              </p>
+              <p v-if="p.payment_notes" class="sm:col-span-2 truncate font-sans text-slate-600">
+                Catatan: <span class="text-slate-700 italic">"{{ p.payment_notes }}"</span>
+              </p> -->
             </div>
-
-            <p v-if="p.payment_notes" class="text-xs text-slate-500 truncate bg-slate-50 p-2 rounded border border-slate-100">
-              Catatan: {{ p.payment_notes }}
-            </p>
-
-            <button
-              type="button"
-              @click="openPaymentModal(p)"
-              class="w-full h-8 px-3 rounded bg-amber-50 hover:bg-amber-100 border border-amber-300 text-[#8C6918] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
-            >
-              <CreditCard class="w-3.5 h-3.5" />
-              <span>Catat Transaksi</span>
-            </button>
           </div>
         </div>
 
@@ -154,11 +217,11 @@
           v-if="totalRecords > 0"
           class="p-3.5 sm:px-5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs"
         >
-          <div class="text-slate-500 whitespace-nowrap order-2 sm:order-1">
+          <div class="text-slate-500 whitespace-nowrap order-2 sm:order-1 text-center sm:text-left">
             Menampilkan <span class="font-semibold text-slate-800 font-mono">{{ startRecord }}</span> - <span class="font-semibold text-slate-800 font-mono">{{ endRecord }}</span> dari <span class="font-semibold text-slate-800 font-mono">{{ totalRecords }}</span> transaksi
           </div>
 
-          <div class="flex items-center gap-1.5 order-1 sm:order-2">
+          <div class="flex items-center justify-center gap-1.5 order-1 sm:order-2 w-full sm:w-auto">
             <button
               type="button"
               @click="currentPage--"
@@ -166,10 +229,11 @@
               class="h-8 px-2.5 rounded-[5px] bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors whitespace-nowrap"
             >
               <ChevronLeft class="w-3.5 h-3.5" />
-              <span class="hidden sm:inline">Sebelumnya</span>
+              <span>Sebelumnya</span>
             </button>
             
-            <div class="flex items-center gap-1 font-mono">
+            <!-- Desktop Page Numbers -->
+            <div class="hidden sm:flex items-center gap-1 font-mono">
               <button
                 v-for="page in totalPages"
                 :key="page"
@@ -185,13 +249,18 @@
               </button>
             </div>
 
+            <!-- Mobile Page Indicator -->
+            <span class="sm:hidden px-2 text-xs font-mono font-semibold text-slate-600">
+              {{ currentPage }} / {{ totalPages }}
+            </span>
+
             <button
               type="button"
               @click="currentPage++"
               :disabled="currentPage >= totalPages"
               class="h-8 px-2.5 rounded-[5px] bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors whitespace-nowrap"
             >
-              <span class="hidden sm:inline">Selanjutnya</span>
+              <span>Selanjutnya</span>
               <ChevronRight class="w-3.5 h-3.5" />
             </button>
           </div>
@@ -199,100 +268,111 @@
       </div>
     </div>
 
-    <!-- Record Payment Modal -->
-    <div
-      v-if="activePayment"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
-    >
-      <div class="w-full max-w-md bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-xl text-slate-800">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-          <div>
-            <h3 class="font-bold text-base text-slate-900">Catat Transaksi Pembayaran</h3>
-            <span class="text-xs font-mono text-[#8C6918]">{{ activePayment.full_name }} ({{ activePayment.registration_code }})</span>
-          </div>
-          <button @click="activePayment = null" class="text-slate-400 hover:text-slate-700">
-            <X class="w-5 h-5" />
-          </button>
-        </div>
+    <!-- Record Payment Modal (Bottom sheet on mobile, centered dialog on desktop) -->
+    <Teleport to="body">
+      <div
+        v-if="activePayment"
+        @click.self="activePayment = null"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 p-0 sm:p-4 backdrop-blur-xs transition-opacity"
+      >
+        <div class="w-full max-w-md bg-white border-t sm:border border-slate-200 rounded-t-2xl sm:rounded-xl p-5 sm:p-6 shadow-2xl text-slate-800 max-h-[92vh] overflow-y-auto">
+          
+          <!-- Mobile Pull Handle -->
+          <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-3 sm:hidden"></div>
 
-        <form @submit.prevent="savePaymentRecord" class="space-y-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Status Pembayaran</label>
-            <select
-              v-model="paymentForm.payment_status"
-              class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-satria-red focus:ring-1 focus:ring-satria-red"
-            >
-              <option value="paid">Lunas (Paid)</option>
-              <option value="unpaid">Belum Bayar (Unpaid)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Nominal Pembayaran (Rp)</label>
-            <input
-              type="number"
-              v-model.number="paymentForm.payment_amount"
-              min="0"
-              step="5000"
-              placeholder="Contoh: 250000"
-              required
-              class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-satria-red focus:ring-1 focus:ring-satria-red font-mono"
-            />
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
+          <!-- Modal Header -->
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
             <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Pembayaran</label>
+              <h3 class="font-bold text-base text-slate-900">Catat Transaksi Pembayaran</h3>
+              <span class="text-xs font-mono text-[#8C6918] font-bold">{{ activePayment.full_name }}</span>
+            </div>
+            <button @click="activePayment = null" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <form @submit.prevent="savePaymentRecord" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Status Pembayaran</label>
+              <select
+                v-model="paymentForm.payment_status"
+                class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-satria-red focus:ring-1 focus:ring-satria-red"
+              >
+                <option value="paid">Lunas</option>
+                <option value="unpaid">Belum Bayar</option>
+              </select>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-semibold text-slate-700">Nominal Pembayaran (Rp)</label>
+              </div>
               <input
-                type="date"
-                v-model="paymentForm.payment_date"
+                type="number"
+                v-model.number="paymentForm.payment_amount"
+                min="0"
+                step="5000"
+                placeholder="Contoh: 250000"
                 required
                 class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-satria-red focus:ring-1 focus:ring-satria-red font-mono"
               />
             </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Metode</label>
-              <select
-                v-model="paymentForm.payment_method"
-                class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-satria-red focus:ring-1 focus:ring-satria-red"
-              >
-                <option value="Tunai">Tunai</option>
-                <option value="Transfer">Transfer Bank</option>
-                <option value="QRIS">QRIS</option>
-              </select>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Pembayaran</label>
+                <input
+                  type="date"
+                  v-model="paymentForm.payment_date"
+                  required
+                  class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-satria-red focus:ring-1 focus:ring-satria-red font-mono"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Metode Bayar</label>
+                <select
+                  v-model="paymentForm.payment_method"
+                  class="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-satria-red focus:ring-1 focus:ring-satria-red"
+                >
+                  <option value="Tunai">Tunai / Cash</option>
+                  <option value="Transfer">Transfer Bank</option>
+                  <option value="QRIS">QRIS</option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Transaksi</label>
-            <textarea
-              v-model="paymentForm.payment_notes"
-              rows="2"
-              placeholder="Contoh: Pembayaran pendaftaran + seragam dobok..."
-              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-satria-red focus:ring-1 focus:ring-satria-red"
-            ></textarea>
-          </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Transaksi (Opsional)</label>
+              <textarea
+                v-model="paymentForm.payment_notes"
+                rows="2"
+                placeholder="Contoh: Pembayaran pendaftaran + seragam dobok..."
+                class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-[6px] text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-satria-red focus:ring-1 focus:ring-satria-red"
+              ></textarea>
+            </div>
 
-          <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              @click="activePayment = null"
-              class="px-4 h-9 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-slate-100"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              :disabled="saving"
-              class="px-4 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-[6px] flex items-center gap-1.5 shadow-sm disabled:opacity-50"
-            >
-              <Loader2 v-if="saving" class="w-3.5 h-3.5 animate-spin" />
-              <span>Simpan Pembayaran</span>
-            </button>
-          </div>
-        </form>
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                @click="activePayment = null"
+                class="px-4 h-9 border border-slate-300 rounded-[6px] text-xs font-medium text-slate-700 hover:bg-slate-100"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                :disabled="saving"
+                class="px-4 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-[6px] flex items-center gap-1.5 shadow-sm disabled:opacity-50 active:scale-[0.98]"
+              >
+                <Loader2 v-if="saving" class="w-3.5 h-3.5 animate-spin" />
+                <span>Simpan Pembayaran</span>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+    </Teleport>
 
   </div>
 </template>
@@ -301,7 +381,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { apiRequest } from '../../utils/api.js';
 import { toastSuccess, toastError } from '../../utils/swal.js';
-import { getWitaToday, formatWitaDate } from '../../utils/date.js';
+import { getWitaToday, formatWitaDate, cleanPhone } from '../../utils/date.js';
 import { RefreshCw, Loader2, CreditCard, ChevronLeft, ChevronRight, X } from 'lucide-vue-next';
 import StatusBadge from '../../components/common/StatusBadge.vue';
 
