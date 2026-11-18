@@ -2,12 +2,12 @@
   <div class="min-h-screen bg-slate-50 flex flex-col justify-center items-center px-4 py-8 antialiased selection:bg-satria-red/15 selection:text-satria-red">
     
     <!-- PWA Brand Splash / Header -->
-    <div class="w-full max-w-sm text-center mb-6">
-      <div class="inline-block p-1 bg-gradient-to-b from-satria-gold/30 to-satria-red/20 rounded-full mb-3 shadow-sm">
+    <div class="w-full max-w-sm text-center mb-6 flex flex-col items-center">
+      <div class="inline-flex items-center justify-center p-1.5 bg-gradient-to-b from-satria-gold/30 to-satria-red/20 rounded-full mb-3 shadow-sm ring-1 ring-satria-gold/20">
         <img
           src="/logo-satria-muda.png"
           alt="Taekwondo Satria Muda Club"
-          class="w-18 h-18 sm:w-20 sm:h-20 rounded-full object-contain mx-auto border-2 border-satria-gold/50 shadow-xs"
+          class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-contain border-2 border-satria-gold/50 shadow-xs"
         />
       </div>
 
@@ -20,7 +20,7 @@
     </div>
 
     <!-- Login Card -->
-    <div class="w-full max-w-sm bg-white border border-slate-200 rounded-xl p-6 sm:p-7 shadow-lg">
+    <div class="w-full max-w-sm bg-white border border-slate-200 rounded-xl p-5 sm:p-7 shadow-lg">
       <form @submit.prevent="handleLogin" class="space-y-4 sm:space-y-5">
         <div>
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 whitespace-nowrap">
@@ -64,14 +64,38 @@
 
         <!-- Turnstile Widget -->
         <TurnstileWidget
+          ref="turnstileRef"
           @token-received="(t) => { turnstileToken = t; }"
           @token-expired="() => { turnstileToken = ''; }"
         />
 
-        <!-- Error Message -->
-        <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-[6px] text-xs text-red-700 font-medium">
-          {{ errorMessage }}
-        </div>
+        <!-- Error Message with Auto-Dismiss & Smooth Transition -->
+        <Transition
+          enter-active-class="transition duration-200 ease-out"
+          enter-from-class="opacity-0 -translate-y-1"
+          enter-to-class="opacity-100 translate-y-0"
+          leave-active-class="transition duration-200 ease-in"
+          leave-from-class="opacity-100 translate-y-0"
+          leave-to-class="opacity-0 -translate-y-1"
+        >
+          <div
+            v-if="errorMessage"
+            class="flex items-start justify-between gap-2.5 p-3 bg-red-50 border border-red-200 rounded-[6px] text-xs text-red-700 font-medium shadow-xs"
+          >
+            <div class="flex items-start gap-2">
+              <CircleAlert class="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              <span class="leading-relaxed">{{ errorMessage }}</span>
+            </div>
+            <button
+              type="button"
+              @click="clearError"
+              class="text-red-400 hover:text-red-700 transition-colors p-0.5 -mr-1 -mt-0.5 shrink-0"
+              title="Tutup pesan"
+            >
+              <X class="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </Transition>
 
         <!-- Submit Button -->
         <button
@@ -103,11 +127,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '../../stores/auth.js';
 import { toastSuccess } from '../../utils/swal.js';
-import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-vue-next';
+import { Eye, EyeOff, LogIn, Loader2, CircleAlert, X } from 'lucide-vue-next';
 import TurnstileWidget from '../../components/TurnstileWidget.vue';
 
 const router = useRouter();
@@ -117,11 +141,34 @@ const username = ref('admin');
 const password = ref('admin123');
 const showPassword = ref(false);
 const turnstileToken = ref('');
+const turnstileRef = ref(null);
 const errorMessage = ref('');
 const isLoading = ref(false);
+let errorTimer = null;
+
+function showError(msg, timeoutMs = 4500) {
+  errorMessage.value = msg;
+  if (errorTimer) clearTimeout(errorTimer);
+  errorTimer = setTimeout(() => {
+    errorMessage.value = '';
+    errorTimer = null;
+  }, timeoutMs);
+}
+
+function clearError() {
+  errorMessage.value = '';
+  if (errorTimer) {
+    clearTimeout(errorTimer);
+    errorTimer = null;
+  }
+}
+
+onBeforeUnmount(() => {
+  if (errorTimer) clearTimeout(errorTimer);
+});
 
 async function handleLogin() {
-  errorMessage.value = '';
+  clearError();
   isLoading.value = true;
 
   try {
@@ -129,7 +176,12 @@ async function handleLogin() {
     toastSuccess('Login berhasil! Selamat datang.');
     router.push('/admin/dashboard');
   } catch (err) {
-    errorMessage.value = err.message || 'Login gagal. Periksa kembali username dan kata sandi Anda.';
+    showError(err.message || 'Login gagal. Periksa kembali username dan kata sandi Anda.', 4500);
+    // Reset Turnstile token & widget agar siap dicoba kembali
+    turnstileToken.value = '';
+    if (turnstileRef.value?.reset) {
+      turnstileRef.value.reset();
+    }
   } finally {
     isLoading.value = false;
   }

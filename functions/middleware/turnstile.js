@@ -22,7 +22,17 @@ export async function verifyTurnstileToken(c, token) {
     });
 
     const outcome = await res.json();
-    return !!outcome.success;
+    if (outcome.success) {
+      return true;
+    }
+
+    // In local development, if remote siteverify rejected (e.g. localhost domain not registered or test secret mismatch)
+    if (isDev) {
+      console.warn('[Turnstile Dev Bypass] Verification rejected by Cloudflare, but bypassed because ENVIRONMENT === development:', outcome['error-codes']);
+      return true;
+    }
+
+    return false;
   } catch (err) {
     // shortcut: when turnstile endpoint is unreachable in edge dev, log and allow if dev
     if (isDev) return true;

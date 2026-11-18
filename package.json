@@ -1,5 +1,5 @@
 {
-  "name": "taekwondo-registration-app",
+  "name": "taekwondo-smc",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -32,6 +32,6 @@
     "tailwindcss": "^3.4.16",
     "vite": "^6.0.1",
     "vite-plugin-pwa": "^0.21.1",
-    "wrangler": "^3.91.0"
+    "wrangler": "^4.164.0"
   }
 }

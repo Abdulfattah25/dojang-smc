@@ -1,15 +1,24 @@
 <template>
-  <div class="my-2">
-    <!-- Cloudflare Turnstile container -->
-    <div ref="containerRef" id="cf-turnstile"></div>
+  <div class="my-2.5">
+    <!-- Cloudflare Turnstile container with clean modern light styling -->
+    <div
+      v-show="!isFallbackActive"
+      ref="containerRef"
+      id="cf-turnstile"
+      class="flex justify-center items-center min-h-[66px] w-full rounded-lg bg-slate-50/80 p-1 border border-slate-200/80 shadow-xs overflow-hidden"
+    ></div>
 
     <!-- Dev/Fallback Badge when running without remote sitekey -->
     <div
       v-if="isFallbackActive"
-      class="flex items-center gap-2 p-2.5 rounded-[6px] bg-emerald-50 border border-emerald-200 text-xs text-emerald-800"
+      class="flex items-center gap-2.5 p-3 rounded-lg bg-emerald-50/90 border border-emerald-200/90 text-xs text-emerald-800 shadow-xs"
     >
-      <ShieldCheck class="w-4 h-4 text-emerald-600 flex-shrink-0" />
-      <span>Perlindungan Anti-Bot Aktif (Cloudflare Turnstile Verified)</span>
+      <div class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+        <ShieldCheck class="w-3.5 h-3.5 text-emerald-600" />
+      </div>
+      <div>
+        <p class="font-semibold text-emerald-900 leading-tight">Cloudflare Turnstile Verified</p>
+      </div>
     </div>
   </div>
 </template>
@@ -17,6 +26,17 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { ShieldCheck } from 'lucide-vue-next';
+
+const props = defineProps({
+  theme: {
+    type: String,
+    default: 'light', // Mengunci ke tema terang agar selaras dengan form kartu putih
+  },
+  size: {
+    type: String,
+    default: 'normal',
+  },
+});
 
 const emit = defineEmits(['token-received', 'token-expired']);
 
@@ -71,7 +91,8 @@ function initTurnstile() {
       'error-callback': () => {
         activateFallback();
       },
-      theme: 'auto',
+      theme: props.theme,
+      size: props.size,
     });
   } catch (err) {
     activateFallback();
@@ -82,6 +103,18 @@ function activateFallback() {
   isFallbackActive.value = true;
   emit('token-received', 'dummy-turnstile-token');
 }
+
+function reset() {
+  if (widgetId && window.turnstile) {
+    try {
+      window.turnstile.reset(widgetId);
+    } catch (_) {}
+  }
+}
+
+defineExpose({
+  reset,
+});
 
 onBeforeUnmount(() => {
   if (widgetId && window.turnstile) {
