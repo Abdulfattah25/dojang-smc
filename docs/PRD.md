@@ -814,22 +814,72 @@ Cloudflare R2 digunakan untuk mengarsipkan dokumen identitas (Akta Kelahiran & P
 
 ### 7.5 Langkah 4: Setup Proteksi Anti-Bot Cloudflare Turnstile
 
-Cloudflare Turnstile menggantikan CAPTCHA tradisional secara mulus tanpa membuat pendaftar pusing memecahkan teka-teki gambar.
+Cloudflare Turnstile menggantikan CAPTCHA tradisional secara cerdas tanpa membuat pendaftar pusing memecahkan teka-teki gambar. Pada antarmuka Cloudflare Dashboard terbaru, menu Turnstile terletak di bawah kelompok **Application security**.
 
-1. Masuk ke [Cloudflare Dashboard](https://dash.cloudflare.com/) > Pilih menu **Turnstile** pada bilah navigasi samping kiri.
-2. Klik tombol **Add Site**:
-   - **Site name:** `Taekwondo Satria Muda Club`
-   - **Domain:** Masukkan domain produksi Anda, wildcard `*.pages.dev`, dan tambahkan `localhost` untuk kebutuhan pengujian lokal.
-   - **Widget Mode:** `Managed` (Sistem AI Cloudflare otomatis menentukan tantangan bot).
-3. Setelah dibuat, Anda akan memperoleh sepasang kunci:
-   - **Site Key (Kunci Publik):** Dimasukkan ke berkas `.env` frontend (`VITE_TURNSTILE_SITE_KEY`).
-   - **Secret Key (Kunci Privat):** Dimasukkan ke berkas `.dev.vars` lokal dan Cloudflare Pages Secrets (`TURNSTILE_SECRET_KEY`).
+#### A. Navigasi ke Halaman Pembuatan Widget
+1. Buka [Cloudflare Dashboard](https://dash.cloudflare.com/) dan login menggunakan akun Cloudflare Anda.
+2. Pada bilah navigasi samping kiri (*sidebar*), cari dan buka kelompok **Protect & connect**.
+3. Klik menu **Application security** hingga sub-menunya terbuka.
+4. Pilih menu **Turnstile** (Anda akan diarahkan ke halaman *Turnstile Widgets*).
+5. Klik tombol **Add Widget** di pojok kanan atas halaman.
+
+#### B. Mengisi Formulir Pembuatan Widget (`Turnstile Widgets > Add Widget`)
+Pada halaman pembuatan widget baru, lengkapi parameter berikut:
+
+1. **Widget name:**
+   - Masukkan nama pengenal widget untuk memudahkan identifikasi di masa depan.
+   - Contoh: `Taekwondo Satria Muda Club` atau `taekwondo-smc`.
+
+2. **Hostname Management (Hostnames):**
+   - Bagian ini menentukan domain mana saja yang diizinkan untuk memuat dan menjalankan widget Turnstile (maksimal 10 hostnames per widget).
+   - Masukkan hostname berikut satu per satu pada input *Search or enter a hostname*:
+     - `taekwondo-smc.pages.dev` *(atau subdomain Pages Anda yang terdaftar di Cloudflare Pages)*.
+     - `localhost` *(wajib didaftarkan untuk pengujian di komputer lokal)*.
+     - `127.0.0.1` *(opsional, untuk akses IP lokal)*.
+     - Domain kustom dojang Anda *(jika menggunakan domain sendiri, contoh: `pendaftaran.satriamudaclub.com`)*.
+   - > [!IMPORTANT]
+     > Masukkan nama host saja tanpa protokol `http://` atau `https://` dan tanpa tanda garis miring `/` di bagian akhir.
+
+3. **Widget Mode:**
+   Pilih salah satu dari 3 mode interaksi:
+   - **Managed (Recommended)** *(Opsi Terpilih)*:  
+     Sistem AI Cloudflare secara otomatis menganalisis risiko trafik pendaftar. Mayoritas pengunjung asli akan diverifikasi secara otomatis tanpa tantangan interaktif. Tantangan visual ringan hanya muncul jika terdeteksi anomali trafik bot berisiko tinggi.
+   - **Non-interactive:**  
+     Menampilkan animasi *spinner* pemuatan saat verifikasi berlangsung tanpa meminta klik dari pengunjung.
+   - **Invisible:**  
+     Verifikasi berjalan sepenuhnya di latar belakang tanpa ada elemen visual yang tampil di layar.
+
+4. Klik tombol **Create** di bagian bawah halaman untuk menyimpan konfigurasi widget.
+
+#### C. Pengambilan & Penempatan Kunci Kredensial
+Setelah widget berhasil dibuat, Cloudflare akan menampilkan sepasang kunci:
+
+1. **Site Key (Kunci Publik):**
+   - Berfungsi untuk merender elemen widget Turnstile di antarmuka frontend Vue (`TurnstileWidget.vue`).
+   - Masukkan langsung ke berkas `.env` lokal:
+     ```ini
+     VITE_TURNSTILE_SITE_KEY=0x4AAAAAAAx...x
+     ```
+   - *(Kunci ini nantinya juga dimasukkan ke pengaturan Cloudflare Pages Dashboard pada **Langkah 8** setelah proyek Pages Anda dibuat).*
+
+2. **Secret Key (Kunci Privat / Sensitif):**
+   - Digunakan oleh backend Cloudflare Pages Functions (`functions/middleware/turnstile.js`) untuk memvalidasi token respon ke server verifikasi Cloudflare.
+   - Masukkan langsung ke berkas `.dev.vars` lokal:
+     ```ini
+     TURNSTILE_SECRET_KEY=0x4AAAAAAAy...y
+     ```
+   - *(Kunci rahasia ini nantinya dimasukkan ke Cloudflare Pages Dashboard pada **Langkah 8**).*
+
+> [!WARNING]
+> **PENTING — Jangan cari "Environment variables" di pengaturan akun (Manage account)!**
+> Jika Anda membuka ikon gerigi atau menu *Manage account* di sidebar (menu yang berisi *Members, Billing, Audit logs*), Anda **tidak akan menemukan** menu Environment variables di sana.
+> Menu *Environment variables* / *Variables and Secrets* adalah pengaturan **khusus per-proyek** yang baru akan ada di dalam proyek Pages Anda setelah Anda menyelesaikan **Langkah 7 (Hubungkan Git & Buat Proyek Pages)**. Untuk saat ini di Langkah 4 & 5, **cukup simpan kedua kunci tersebut di file `.env` dan `.dev.vars` lokal Anda terlebih dahulu**.
 
 > [!TIP]
-> **Kunci Dummy Khusus Local Testing Tanpa Internet:**
-> Cloudflare menyediakan kunci testing standar yang selalu lolos verifikasi:
-> - Site Key: `1x00000000000000000000AA`
-> - Secret Key: `1x0000000000000000000000000000000AA`
+> **Kunci Pengujian Standar (Testing Keys):**
+> Jika Anda sedang menguji alur aplikasi secara offline di lingkungan lokal tanpa internet, Cloudflare menyediakan pasangan kunci dummy yang selalu bernilai sukses (selalu lolos verifikasi):
+> - **Site Key (Always Passes):** `1x00000000000000000000AA`
+> - **Secret Key (Always Passes):** `1x0000000000000000000000000000000AA`
 
 ---
 
@@ -897,43 +947,66 @@ Cloudflare Pages terintegrasi dengan GitHub/GitLab untuk otomatisasi CI/CD (*Con
    git commit -m "feat: complete cloudflare integration"
    git push origin main
    ```
-2. Buka [Cloudflare Dashboard](https://dash.cloudflare.com/) > Masuk ke menu **Workers & Pages** > Pilih **Create application**.
-3. Pilih tab **Pages** > Klik tombol **Connect to Git**.
-4. Berikan izin akses ke akun GitHub Anda dan pilih repositori proyek ini (`taekwondo-registration-app`).
-5. Pada panel **Set up builds and deployments**, masukkan parameter konfigurasi:
-   - **Project name:** `taekwondo-smc-app` (akan menjadi subdomain `*.pages.dev`)
+2. Buka [Cloudflare Dashboard](https://dash.cloudflare.com/):
+   - Pada sidebar kiri, buka kelompok **Build** > klik **Compute** > pilih **Workers & Pages**.
+   - *(Atau gunakan kolom Quick Search di bagian atas dashboard dengan mengetik "Workers & Pages").*
+3. Klik tombol **Create application** (atau **Create**).
+4. Pilih tab **Pages** > Klik tombol **Connect to Git**.
+5. Berikan izin akses ke akun GitHub Anda dan pilih repositori proyek ini (`taekwondo-registration-app`).
+6. Pada panel **Set up builds and deployments**, masukkan parameter konfigurasi:
+   - **Project name:** `taekwondo-smc` (akan menjadi subdomain `*.pages.dev`)
    - **Production branch:** `main`
    - **Framework preset:** `Vite`
    - **Build command:** `npm run build`
    - **Build output directory:** `dist`
-6. Klik **Save and Deploy**. Tunggu hingga proses build awal selesai.
+7. Klik **Save and Deploy**. Tunggu hingga proses build awal selesai.
 
 ---
 
 ### 7.9 Langkah 8: Konfigurasi Bindings & Secrets di Dashboard Cloudflare
 
-Setelah deployment pertama selesai, Anda **wajib** menyambungkan database D1, bucket R2, dan variabel rahasia agar fitur backend dapat beroperasi di cloud.
+Setelah deployment pertama selesai di Langkah 7, proyek Pages Anda kini sudah tercipta dan memiliki menu pengaturan internalnya sendiri. Anda **wajib** menyambungkan database D1, bucket R2, dan variabel rahasia agar fitur backend dapat beroperasi di cloud.
 
-1. Di Dashboard Cloudflare Pages proyek Anda, klik tab **Settings**.
-2. Masuk ke sub-menu **Functions** (atau **Bindings**):
-   - **D1 Database Bindings:**
-     - Klik **Add binding**.
+> [!WARNING]
+> **PENTING: Jangan buka menu "Manage account" di sidebar bawah!**
+> Menu *Manage account* (ikon gerigi) adalah pengaturan akun Cloudflare level global (tagihan, anggota tim, dll). Menu *Variables and Secrets* serta *Bindings* hanya ada di **dalam proyek Pages Anda**.
+
+#### Cara Navigasi ke Pengaturan Proyek:
+1. Buka sidebar kiri: **Build** > **Compute** > **Workers & Pages**.
+2. Klik nama proyek Anda yang baru saja dibuat: **`taekwondo-smc`**.
+3. Di dalam halaman detail proyek tersebut, klik tab **Settings** di bagian atas (di samping tab *Deployments* dan *Custom domains*).
+
+#### A. Konfigurasi D1 & R2 Bindings:
+Pada menu sebelah kiri halaman Settings:
+- Pilih sub-menu **Bindings** (atau **Functions > Bindings** tergantung tampilan versi Cloudflare Anda):
+  1. **D1 Database Bindings:**
+     - Klik **Add binding** (atau *Add* pada bagian *D1 Database Bindings*).
      - Variable name: `DB` *(wajib huruf besar)*.
      - D1 database: Pilih basis data yang telah dibuat (`taekwondo-db`).
-   - **R2 Bucket Bindings:**
-     - Klik **Add binding**.
+  2. **R2 Bucket Bindings:**
+     - Klik **Add binding** (atau *Add* pada bagian *R2 Bucket Bindings*).
      - Variable name: `R2_BUCKET` *(wajib huruf besar)*.
      - R2 bucket: Pilih bucket yang telah dibuat (`taekwondo-docs`).
-3. Masuk ke sub-menu **Environment variables**:
-   - Tambahkan variabel produksi:
-     - `ENVIRONMENT` = `production`
-     - `MAX_UPLOAD_SIZE_MB` = `2`
-     - `VITE_TURNSTILE_SITE_KEY` = *(Isi dengan Site Key Turnstile resmi Anda)*
-   - Tambahkan variabel rahasia dengan memilih opsi **Encrypt**:
-     - `JWT_SECRET` = *(Kunci acak unik dan panjang untuk sesi produksi)*
-     - `TURNSTILE_SECRET_KEY` = *(Isi dengan Secret Key Turnstile resmi Anda)*
-4. **Menerapkan Perubahan (Trigger Re-deploy):**
-   Masuk ke tab **Deployments**, klik tombol titik tiga (`...`) di samping rilis terbaru, lalu pilih **Retry deployment**. Cloudflare Pages akan mem-build ulang aplikasi dengan seluruh binding aktif.
+
+#### B. Konfigurasi Environment Variables & Secrets:
+Pada menu sebelah kiri halaman Settings:
+- Pilih sub-menu **Variables and Secrets** (pada beberapa versi UI lama bernama **Environment variables**):
+  1. **Variabel Publik / Biasa (Plain text):**
+     - Klik **Add** / **Add variable**:
+       - `ENVIRONMENT` = `production`
+       - `MAX_UPLOAD_SIZE_MB` = `2`
+       - `VITE_TURNSTILE_SITE_KEY` = *(Isi dengan Site Key Turnstile resmi Anda)*
+  2. **Variabel Rahasia / Sensitif (Secret - Encrypted):**
+     - Klik **Add** / **Add variable**, lalu pilih opsi **Encrypt** (agar nilainya terenkripsi dan tidak bisa dibaca publik):
+       - `JWT_SECRET` = *(Kunci acak unik dan panjang untuk sesi produksi)*
+       - `TURNSTILE_SECRET_KEY` = *(Isi dengan Secret Key Turnstile resmi Anda)*
+  3. Klik **Save** (Simpan).
+
+#### C. Menerapkan Perubahan (Trigger Re-deploy):
+Setelah Binding dan Variabel disimpan, Cloudflare memerlukan satu kali deploy ulang agar variabel terbaca:
+- Kembali ke tab **Deployments** di bagian atas proyek Anda.
+- Cari deployment paling atas (terbaru), klik tombol titik tiga (`...`) atau ikon panah rincian, lalu pilih **Retry deployment**.
+- Tunggu sekitar 1-2 menit hingga statusnya berubah hijau (*Success*). Sistem pendaftaran Taekwondo SMC kini aktif 100% di cloud!
 
 ---
 
@@ -944,8 +1017,9 @@ Setelah deployment pertama selesai, Anda **wajib** menyambungkan database D1, bu
 | Gejala Error | Kemungkinan Masalah | Solusi Cepat |
 | :--- | :--- | :--- |
 | **500 Internal Server Error saat panggil `/api/auth/me` di lokal** | Wrangler di port 8788 belum berjalan. | Jalankan `npm run pages:dev` di terminal terpisah sebelum mengakses `http://localhost:5173`. |
+| **Error `Workers-specific command in a Pages project` saat build** | Konfigurasi Deploy command terisi `npx wrangler deploy` (untuk Worker, bukan Pages). | Buka **Settings > Builds & deployments > Deploy command**, ubah menjadi `npx wrangler pages deploy dist` atau pastikan proyek dibuat melalui tab **Pages (bukan Workers)**. |
 | **Error `no such table: members` atau `users`** | Skema D1 belum dimigrasikan. | Jalankan `npx wrangler d1 execute taekwondo-db --local --file=./migrations/0001_init_schema.sql` (atau ganti `--local` dengan `--remote` untuk produksi). |
-| **Pendaftaran gagal saat verifikasi Turnstile** | Secret Key salah atau domain belum didaftarkan di dashboard Turnstile. | Tambahkan domain `*.pages.dev` dan `localhost` pada pengaturan widget di dashboard Cloudflare Turnstile. |
+| **Pendaftaran gagal saat verifikasi Turnstile** | Secret Key salah atau hostname belum didaftarkan di dashboard Turnstile. | Tambahkan hostname `taekwondo-smc.pages.dev` dan `localhost` pada seksi *Hostname Management* di menu widget Turnstile. |
 | **Gagal upload dokumen pendaftaran di produksi** | Binding R2 belum terhubung di dashboard Pages. | Buka **Settings > Functions > R2 Bucket Bindings**, pastikan `R2_BUCKET` terhubung ke `taekwondo-docs`, lalu lakukan *Retry deployment*. |
 | **Memeriksa Log Realtime di Cloud** | Ingin melihat error console backend saat production. | Jalankan perintah CLI: `npx wrangler pages deployment tail`. |
 

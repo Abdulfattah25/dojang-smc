@@ -11,6 +11,7 @@
     "seed:remote": "wrangler d1 execute taekwondo-db --remote --file=migrations/0002_seed_demo_data.sql",
     "test": "node test/self-check.mjs",
     "preview": "vite preview",
+    "deploy": "wrangler pages deploy dist",
     "pages:dev": "wrangler pages dev dist --compatibility-date=2026-11-01 --d1=DB=taekwondo-db --r2=R2_BUCKET=taekwondo-docs"
   },
   "dependencies": {
