@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-satria-red: #E52E1C;
+  --color-satria-red-hover: #C42010;
+  --color-satria-gold: #C9A85B;
+  --color-obsidian-core: #161311;
+  --color-obsidian-surface: #201B17;
+  --color-dobok-canvas: #F8FAFC;
+  --color-satria-success: #059669;
+  --color-satria-success-hover: #047857;
+}
+
+/* Explicit fallback for satria-success */
+.bg-satria-success {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+}
+.hover\:bg-satria-success-hover:hover,
+.bg-satria-success:hover {
+  background-color: #047857 !important;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Touch active state for Satria push buttons */
+.btn-satria:active {
+  transform: translateY(1px);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(201, 168, 91, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 168, 91, 0.6);
+}
